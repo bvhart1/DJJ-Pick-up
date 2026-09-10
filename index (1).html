@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DJJ Site Visit Route</title>
+<style>
+  :root{
+    --ink:#1B1F23;
+    --paper:#F5F3EF;
+    --card:#FFFFFF;
+    --line:#E4E0D8;
+    --muted:#6B6559;
+    --leg1:#2E5C8A;
+    --leg2:#2E7D5C;
+    --leg3:#9A6B1F;
+    --leg4:#8A2E4A;
+    --done:#2E7D5C;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:48px;
+  }
+  header{
+    position:sticky;
+    top:0;
+    z-index:20;
+    background:var(--ink);
+    color:#fff;
+    padding:14px 16px 12px;
+  }
+  header h1{
+    margin:0 0 2px;
+    font-size:19px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    margin:0;
+    font-size:12.5px;
+    color:#C9C4B8;
+    line-height:1.4;
+  }
+  .progress-wrap{
+    margin-top:10px;
+  }
+  .progress-track{
+    height:6px;
+    background:rgba(255,255,255,0.18);
+    border-radius:99px;
+    overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;
+    background:#8FD3B0;
+    width:0%;
+    transition:width .35s ease;
+  }
+  .progress-label{
+    margin-top:5px;
+    font-size:11.5px;
+    color:#C9C4B8;
+    font-variant-numeric:tabular-nums;
+  }
+  main{
+    max-width:640px;
+    margin:0 auto;
+    padding:14px 12px 0;
+  }
+  details.leg{
+    background:transparent;
+    margin-bottom:14px;
+  }
+  summary.leg-head{
+    list-style:none;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:9px;
+    padding:10px 12px;
+    border-radius:10px;
+    color:#fff;
+    font-weight:700;
+    font-size:13.5px;
+    letter-spacing:0.01em;
+  }
+  summary.leg-head::-webkit-details-marker{display:none;}
+  summary.leg-head .chev{
+    margin-left:auto;
+    font-size:11px;
+    opacity:0.85;
+    transition:transform .2s ease;
+  }
+  details[open] summary.leg-head .chev{transform:rotate(90deg);}
+  .leg1 summary.leg-head{background:var(--leg1);}
+  .leg2 summary.leg-head{background:var(--leg2);}
+  .leg3 summary.leg-head{background:var(--leg3);}
+  .leg4 summary.leg-head{background:var(--leg4);}
+  .leg-sub{
+    font-weight:500;
+    font-size:11.5px;
+    opacity:0.85;
+  }
+  .stops{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin-top:9px;
+  }
+  .stop{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:11px 12px;
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+    transition:opacity .2s ease, background .2s ease;
+  }
+  .stop.done{
+    opacity:0.55;
+  }
+  .stop.done .name{
+    text-decoration:line-through;
+    text-decoration-color:var(--muted);
+  }
+  .num{
+    flex:0 0 auto;
+    width:24px;
+    height:24px;
+    border-radius:50%;
+    background:var(--paper);
+    color:var(--muted);
+    font-size:11.5px;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin-top:1px;
+  }
+  .stop-body{flex:1;min-width:0;}
+  .name{
+    font-size:14.5px;
+    font-weight:700;
+    line-height:1.3;
+    margin:0 0 1px;
+  }
+  .city{
+    font-size:12.5px;
+    color:var(--muted);
+    margin:0 0 8px;
+  }
+  .actions{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    font-size:12.5px;
+    font-weight:600;
+    text-decoration:none;
+    padding:7px 11px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    color:var(--ink);
+    background:#fff;
+    white-space:nowrap;
+  }
+  .btn.call{
+    background:var(--ink);
+    color:#fff;
+    border-color:var(--ink);
+  }
+  .btn svg{width:13px;height:13px;flex:0 0 auto;}
+  .check{
+    flex:0 0 auto;
+    width:26px;
+    height:26px;
+    border-radius:7px;
+    border:1.5px solid var(--line);
+    background:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    margin-top:1px;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .check.checked{
+    background:var(--done);
+    border-color:var(--done);
+  }
+  .check svg{width:15px;height:15px;stroke:#fff;display:none;}
+  .check.checked svg{display:block;}
+  address{
+    font-style:normal;
+  }
+  .addr-text{
+    font-size:11.5px;
+    color:var(--muted);
+    margin:0 0 8px;
+    line-height:1.35;
+  }
+  footer{
+    max-width:640px;
+    margin:18px auto 0;
+    padding:0 16px;
+    font-size:11.5px;
+    color:var(--muted);
+    line-height:1.5;
+  }
+  .reset-btn{
+    display:inline-block;
+    margin-top:10px;
+    font-size:12px;
+    color:var(--muted);
+    text-decoration:underline;
+    background:none;
+    border:none;
+    padding:0;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>DJJ Site Visit Route</h1>
+  <p>34 stops, north to south. Tap a number to call ahead, tap the address to navigate, tap the checkbox once you've called.</p>
+  <div class="progress-wrap">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label" id="progressLabel">0 of 34 called</div>
+  </div>
+</header>
+
+<main id="main"></main>
+
+<footer>
+  Order: Panhandle (west→east on I-10) → Northeast → Central → South, each leg running north to south.
+  <br>
+  <button class="reset-btn" id="resetBtn">Reset all checkmarks</button>
+</footer>
+
+<script>
+const DATA = [
+  { leg: 1, name: "NORTHWEST / PANHANDLE", sub: "Pensacola → east on I-10", stops: [
+    ["Escambia Boys Base","Pensacola","(850) 453-7490","640 Roberts Avenue Bldg 3780, Pensacola, FL 32511"],
+    ["Crestview Youth Academy","Crestview","(850) 683-3908","4449 Straightline Road, Crestview, FL 32539"],
+    ["Okaloosa Youth Academy","Crestview","(850) 689-1984","4455 Straightline Road, Crestview, FL 32536"],
+    ["Walton Academy for Growth and Change","DeFuniak Springs","(850) 520-4642","286 Gene Hurley Road, DeFuniak Springs, FL 32433"],
+    ["Dove Academy","Graceville","(850) 263-7550","5270 Ezell Road, Graceville, FL 32440"],
+    ["Juvenile Unit for Specialized Treatment","Sumatra","(850) 379-8344","29841 Liberty Wilderness Rd, Sumatra, FL 32335"],
+    ["Twin Oaks Academy II","Sumatra","(850) 379-8344","29841 Liberty Wilderness Rd, Sumatra, FL 32335"],
+    ["JoAnn Bridges Academy","Greenville","(850) 948-2230","950 SW Greenville Hill's Rd, Greenville, FL 32331"],
+    ["Oak Grove Academy","Jasper","(386) 223-6500","11180 NE 38th Street, Jasper, FL 32052"],
+  ]},
+  { leg: 2, name: "NORTHEAST", sub: "Jacksonville → south", stops: [
+    ["Duval Academy","Jacksonville","(904) 777-0100","7500 Ricker Road, Jacksonville, FL 32244"],
+    ["Jacksonville Youth Academy","Jacksonville","(904) 374-1733","4501 Lannie Road, Jacksonville, FL 32218"],
+    ["Redwood Youth Academy","Raiford","(352) 225-7302","14692 NE County Road 199, Raiford, FL 32083"],
+    ["St. Augustine Youth Academy","St. Augustine","(904) 417-7611","4500 Avenue D, St. Augustine, FL 32085"],
+    ["Deep Creek Youth Academy","Hastings","(904) 347-2162","765 E St Johns Avenue, Hastings, FL 32145"],
+    ["Alachua Academy","Gainesville","(352) 872-5152","3430 NE 39th Avenue, Gainesville, FL 32609"],
+    ["Daytona JRF","Daytona Beach","(386) 265-1932","1386 Indian Lake Road, Daytona Beach, FL 32124"],
+    ["Center for Success and Independence-Ocala","Ocala","(352) 397-4629","4055 Northwest 105th Street, Ocala, FL 34482"],
+    ["Silver Springs Youth Academy","Ocala","(352) 282-0593","10420 NW Gainesville Road, Ocala, FL 34482"],
+    ["Cypress Creek JOCC","Lecanto","(352) 527-3091","2855 West Woodland Ridge Drive, Lecanto, FL 34461"],
+  ]},
+  { leg: 3, name: "CENTRAL", sub: "Orlando → Tampa Bay", stops: [
+    ["Orange Youth Academy","Orlando","(407) 835-0111","3150 39th Street, Orlando, FL 32839"],
+    ["Kissimmee Youth Academy","Kissimmee","(407) 350-4900","2330 New Beginnings Road, Kissimmee, FL 34744"],
+    ["Columbus Youth Academy","Tampa","(813) 769-0445","9502 E Columbus Drive, Tampa, FL 33619"],
+    ["Tampa Bay Girls Academy","Tampa","(813) 217-5533","9504/9506 E Columbus Drive, Tampa, FL 33619"],
+    ["Tampa Residential Facility","Tampa","(813) 740-3630","9508 E Columbus Drive, Tampa, FL 33619"],
+    ["Les Peters Academy","Tampa","(813) 871-7655","3930 W Dr. Martin Luther King, Jr. Blvd, Tampa, FL 33614"],
+    ["AMI Kids Polk Inc.","Bartow","(863) 204-1770","2145 Bob Phillips Road, Bartow, FL 33830"],
+    ["Britt Technical Youth Academy","St. Petersburg","(727) 624-2088","3001 26th Avenue South, St. Petersburg, FL 33712"],
+    ["Wimauma Academy","Wimauma","(813) 217-5231","4337 Saffold Road, Wimauma, FL 33598"],
+  ]},
+  { leg: 4, name: "SOUTH", sub: "Okeechobee → Miami", stops: [
+    ["Everglades Youth Academy","Okeechobee","(863) 357-3703","5050 NE 168th Street, Okeechobee, FL 34972"],
+    ["Palm Beach Youth Academy","West Palm Beach","(561) 283-2820","9680 Weisman Way, West Palm Beach, FL 33411"],
+    ["Fort Myers Academy","Fort Myers","(239) 215-4700","2515 Ortiz Avenue, Fort Myers, FL 33905"],
+    ["Broward Youth Treatment Center","Pembroke Pines","(954) 962-1088","8301 South Palm Drive Bldg 2, Pembroke Pines, FL 33025"],
+    ["Miami Youth Academy","Miami","(786) 305-8550","10855 SW 84th Street, Miami, FL 33173"],
+    ["South Florida Youth Academy","Miami","(305) 704-7060","3300 NW 27th Avenue, Miami, FL 33142"],
+  ]},
+];
+
+const TOTAL = DATA.reduce((n, leg) => n + leg.stops.length, 0);
+let callStatus = {};
+
+function telHref(phone){
+  return "tel:" + phone.replace(/[^\d]/g, "");
+}
+function mapsHref(addr){
+  return "https://maps.google.com/?q=" + encodeURIComponent(addr);
+}
+
+function render(){
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  let counter = 0;
+  DATA.forEach(leg => {
+    const details = document.createElement("details");
+    details.className = "leg leg" + leg.leg;
+    details.open = true;
+
+    const summary = document.createElement("summary");
+    summary.className = "leg-head";
+    summary.innerHTML = `<span>LEG ${leg.leg} — ${leg.name}</span><span class="leg-sub">${leg.sub}</span><span class="chev">▶</span>`;
+    details.appendChild(summary);
+
+    const stopsWrap = document.createElement("div");
+    stopsWrap.className = "stops";
+
+    leg.stops.forEach(([name, city, phone, addr]) => {
+      counter++;
+      const id = String(counter);
+      const stopEl = document.createElement("div");
+      stopEl.className = "stop";
+      stopEl.id = "stop-" + id;
+
+      stopEl.innerHTML = `
+        <div class="num">${id}</div>
+        <div class="stop-body">
+          <p class="name">${name}</p>
+          <p class="city">${city}</p>
+          <p class="addr-text">${addr}</p>
+          <div class="actions">
+            <a class="btn call" href="${telHref(phone)}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              ${phone}
+            </a>
+            <a class="btn" href="${mapsHref(addr)}" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              Directions
+            </a>
+          </div>
+        </div>
+        <div class="check" data-id="${id}">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+      `;
+      stopsWrap.appendChild(stopEl);
+    });
+
+    details.appendChild(stopsWrap);
+    main.appendChild(details);
+  });
+
+  document.querySelectorAll(".check").forEach(el => {
+    el.addEventListener("click", () => toggleStop(el.dataset.id));
+  });
+
+  applyStatus();
+}
+
+function applyStatus(){
+  let doneCount = 0;
+  Object.keys(callStatus).forEach(id => {
+    if(!callStatus[id]) return;
+    doneCount++;
+    const check = document.querySelector(`.check[data-id="${id}"]`);
+    const stop = document.getElementById("stop-" + id);
+    if(check) check.classList.add("checked");
+    if(stop) stop.classList.add("done");
+  });
+  const pct = Math.round((doneCount / TOTAL) * 100);
+  document.getElementById("progressFill").style.width = pct + "%";
+  document.getElementById("progressLabel").textContent = `${doneCount} of ${TOTAL} called`;
+}
+
+async function saveStatus(){
+  try{
+    await window.storage.set("call-status", JSON.stringify(callStatus), false);
+  }catch(e){
+    console.error("Could not save progress:", e);
+  }
+}
+
+async function loadStatus(){
+  try{
+    const result = await window.storage.get("call-status", false);
+    callStatus = result && result.value ? JSON.parse(result.value) : {};
+  }catch(e){
+    callStatus = {};
+  }
+}
+
+function toggleStop(id){
+  callStatus[id] = !callStatus[id];
+  const check = document.querySelector(`.check[data-id="${id}"]`);
+  const stop = document.getElementById("stop-" + id);
+  check.classList.toggle("checked");
+  stop.classList.toggle("done");
+  applyStatus();
+  saveStatus();
+}
+
+document.getElementById("resetBtn").addEventListener("click", async () => {
+  callStatus = {};
+  applyStatus();
+  document.querySelectorAll(".check").forEach(el => el.classList.remove("checked"));
+  document.querySelectorAll(".stop").forEach(el => el.classList.remove("done"));
+  await saveStatus();
+});
+
+(async function init(){
+  await loadStatus();
+  render();
+})();
+</script>
+
+</body>
+</html>
