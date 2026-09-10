@@ -8,6 +8,4 @@ Just open `index.html` in a browser, or serve the repo with any static file host
 
 ## GitHub Pages
 
-This repo includes a workflow (`.github/workflows/deploy.yml`) that deploys `index.html` to GitHub Pages automatically on every push to `main`.
-
-To turn it on (one-time setup): go to **Settings → Pages** and set **Source** to **GitHub Actions**. After that, the site will be published at `https://<owner>.github.io/DJJ-Pick-up/` and stay up to date automatically.
+GitHub Pages is configured to deploy from the `main` branch. Any push to `main` (with `index.html` at the repo root) is published automatically at `https://<owner>.github.io/DJJ-Pick-up/`.
