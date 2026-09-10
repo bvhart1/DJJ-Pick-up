@@ -379,18 +379,18 @@ function applyStatus(){
   document.getElementById("progressLabel").textContent = `${doneCount} of ${TOTAL} called`;
 }
 
-async function saveStatus(){
+function saveStatus(){
   try{
-    await window.storage.set("call-status", JSON.stringify(callStatus), false);
+    localStorage.setItem("djj-call-status", JSON.stringify(callStatus));
   }catch(e){
     console.error("Could not save progress:", e);
   }
 }
 
-async function loadStatus(){
+function loadStatus(){
   try{
-    const result = await window.storage.get("call-status", false);
-    callStatus = result && result.value ? JSON.parse(result.value) : {};
+    const raw = localStorage.getItem("djj-call-status");
+    callStatus = raw ? JSON.parse(raw) : {};
   }catch(e){
     callStatus = {};
   }
@@ -406,16 +406,16 @@ function toggleStop(id){
   saveStatus();
 }
 
-document.getElementById("resetBtn").addEventListener("click", async () => {
+document.getElementById("resetBtn").addEventListener("click", () => {
   callStatus = {};
   applyStatus();
   document.querySelectorAll(".check").forEach(el => el.classList.remove("checked"));
   document.querySelectorAll(".stop").forEach(el => el.classList.remove("done"));
-  await saveStatus();
+  saveStatus();
 });
 
-(async function init(){
-  await loadStatus();
+(function init(){
+  loadStatus();
   render();
 })();
 </script>
