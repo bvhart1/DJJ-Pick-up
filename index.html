@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DJJ Site Visit Route</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root{
     --ink:#1B1F23;
@@ -244,6 +245,77 @@
       opacity:0.3;
     }
   }
+  .nearest-btn{
+    display:block;
+    width:100%;
+    margin-top:10px;
+    background:#3A7CA5;
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    padding:10px 12px;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(27,31,35,0.55);
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+    z-index:200;
+  }
+  .modal-overlay[hidden]{display:none;}
+  .modal-panel{
+    background:var(--paper);
+    width:100%;
+    max-width:640px;
+    max-height:88vh;
+    overflow-y:auto;
+    border-radius:16px 16px 0 0;
+    padding:14px 14px 18px;
+  }
+  @media (min-width:680px){
+    .modal-overlay{align-items:center; padding:20px;}
+    .modal-panel{border-radius:16px;}
+  }
+  .modal-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:8px;
+  }
+  .modal-header h2{
+    margin:0;
+    font-size:16px;
+  }
+  .modal-close{
+    background:none;
+    border:none;
+    font-size:20px;
+    line-height:1;
+    cursor:pointer;
+    color:var(--muted);
+    padding:4px;
+  }
+  .nearest-status{
+    font-size:12.5px;
+    color:var(--muted);
+    margin-bottom:10px;
+  }
+  .nearest-map{
+    height:220px;
+    border-radius:10px;
+    overflow:hidden;
+    margin-bottom:12px;
+    border:1px solid var(--line);
+  }
+  .distance-badge{
+    font-weight:700;
+    color:var(--leg1);
+  }
 </style>
 </head>
 <body>
@@ -255,6 +327,7 @@
     <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
     <div class="progress-label" id="progressLabel">0 of 34 called</div>
   </div>
+  <button class="nearest-btn" id="nearestBtn">📍 Find Nearest Facilities</button>
 </header>
 
 <main id="main"></main>
@@ -265,6 +338,19 @@
   <button class="reset-btn" id="resetBtn">Reset all checkmarks</button>
 </footer>
 
+<div class="modal-overlay" id="nearestOverlay" hidden>
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Nearest Facilities</h2>
+      <button class="modal-close" id="nearestClose" aria-label="Close">✕</button>
+    </div>
+    <div class="nearest-status" id="nearestStatus"></div>
+    <div class="nearest-map" id="nearestMap"></div>
+    <div class="stops" id="nearestList"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 const SUPABASE_URL = "https://cgyropxdyinewklydkbk.supabase.co";
@@ -326,6 +412,36 @@ function mapsHref(addr){
   return "https://maps.google.com/?q=" + encodeURIComponent(addr);
 }
 
+function createStopElement(id, name, city, phone, addr, idPrefix, extraHtml){
+  const stopEl = document.createElement("div");
+  stopEl.className = "stop";
+  stopEl.dataset.id = id;
+  stopEl.id = idPrefix + id;
+
+  stopEl.innerHTML = `
+    <div class="num">${id}</div>
+    <div class="stop-body">
+      <p class="name">${name}</p>
+      <p class="city">${city}${extraHtml || ""}</p>
+      <p class="addr-text">${addr}</p>
+      <div class="actions">
+        <a class="btn call" href="${telHref(phone)}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          ${phone}
+        </a>
+        <a class="btn" href="${mapsHref(addr)}" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          Directions
+        </a>
+      </div>
+    </div>
+    <div class="check" data-id="${id}">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+  `;
+  return stopEl;
+}
+
 function render(){
   const main = document.getElementById("main");
   main.innerHTML = "";
@@ -346,43 +462,24 @@ function render(){
     leg.stops.forEach(([name, city, phone, addr]) => {
       counter++;
       const id = String(counter);
-      const stopEl = document.createElement("div");
-      stopEl.className = "stop";
-      stopEl.id = "stop-" + id;
-
-      stopEl.innerHTML = `
-        <div class="num">${id}</div>
-        <div class="stop-body">
-          <p class="name">${name}</p>
-          <p class="city">${city}</p>
-          <p class="addr-text">${addr}</p>
-          <div class="actions">
-            <a class="btn call" href="${telHref(phone)}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-              ${phone}
-            </a>
-            <a class="btn" href="${mapsHref(addr)}" target="_blank" rel="noopener">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              Directions
-            </a>
-          </div>
-        </div>
-        <div class="check" data-id="${id}">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-      `;
-      stopsWrap.appendChild(stopEl);
+      stopsWrap.appendChild(createStopElement(id, name, city, phone, addr, "stop-"));
     });
 
     details.appendChild(stopsWrap);
     main.appendChild(details);
   });
 
-  document.querySelectorAll(".check").forEach(el => {
-    el.addEventListener("click", () => toggleStop(el.dataset.id));
-  });
-
   applyStatus();
+}
+
+document.addEventListener("click", e => {
+  const checkEl = e.target.closest(".check");
+  if(checkEl) toggleStop(checkEl.dataset.id, checkEl);
+});
+
+function setCheckedUI(id, checked){
+  document.querySelectorAll(`.check[data-id="${id}"]`).forEach(el => el.classList.toggle("checked", checked));
+  document.querySelectorAll(`.stop[data-id="${id}"]`).forEach(el => el.classList.toggle("done", checked));
 }
 
 function applyStatus(){
@@ -390,10 +487,7 @@ function applyStatus(){
   Object.keys(callStatus).forEach(id => {
     if(!callStatus[id]) return;
     doneCount++;
-    const check = document.querySelector(`.check[data-id="${id}"]`);
-    const stop = document.getElementById("stop-" + id);
-    if(check) check.classList.add("checked");
-    if(stop) stop.classList.add("done");
+    setCheckedUI(id, true);
   });
   const pct = Math.round((doneCount / TOTAL) * 100);
   document.getElementById("progressFill").style.width = pct + "%";
@@ -432,10 +526,7 @@ async function loadStatus(){
 
 function applyRemoteChange(id, checked){
   callStatus[id] = checked;
-  const check = document.querySelector(`.check[data-id="${id}"]`);
-  const stop = document.getElementById("stop-" + id);
-  if(check) check.classList.toggle("checked", checked);
-  if(stop) stop.classList.toggle("done", checked);
+  setCheckedUI(id, checked);
   applyStatus();
   cacheStatusLocally();
 }
@@ -466,17 +557,14 @@ function launchConfetti(originX, originY){
   }
 }
 
-async function toggleStop(id){
+async function toggleStop(id, sourceEl){
   const checked = !callStatus[id];
   callStatus[id] = checked;
-  const check = document.querySelector(`.check[data-id="${id}"]`);
-  const stop = document.getElementById("stop-" + id);
-  check.classList.toggle("checked");
-  stop.classList.toggle("done");
+  setCheckedUI(id, checked);
   applyStatus();
   cacheStatusLocally();
-  if(checked){
-    const rect = check.getBoundingClientRect();
+  if(checked && sourceEl){
+    const rect = sourceEl.getBoundingClientRect();
     launchConfetti(rect.left + rect.width / 2, rect.top);
   }
   try{
@@ -486,6 +574,137 @@ async function toggleStop(id){
     console.error("Could not save progress to server:", e);
   }
 }
+
+const CITY_COORDS = {
+  "Pensacola": [30.4213, -87.2169],
+  "Crestview": [30.7616, -86.5708],
+  "DeFuniak Springs": [30.7216, -86.1155],
+  "Graceville": [30.9527, -85.5178],
+  "Sumatra": [29.7864, -84.9927],
+  "Greenville": [30.3488, -83.6187],
+  "Jasper": [30.5197, -82.9515],
+  "Jacksonville": [30.3322, -81.6557],
+  "Raiford": [30.0716, -82.2179],
+  "St. Augustine": [29.9012, -81.3124],
+  "Hastings": [29.7247, -81.5087],
+  "Gainesville": [29.6516, -82.3248],
+  "Daytona Beach": [29.2108, -81.0228],
+  "Ocala": [29.1872, -82.1401],
+  "Lecanto": [28.8383, -82.4676],
+  "Orlando": [28.5384, -81.3789],
+  "Kissimmee": [28.2919, -81.4076],
+  "Tampa": [27.9506, -82.4572],
+  "Bartow": [27.8961, -81.8431],
+  "St. Petersburg": [27.7676, -82.6403],
+  "Wimauma": [27.7167, -82.3040],
+  "Okeechobee": [27.2414, -80.8307],
+  "West Palm Beach": [26.7153, -80.0534],
+  "Fort Myers": [26.6406, -81.8723],
+  "Pembroke Pines": [26.0079, -80.2963],
+  "Miami": [25.7617, -80.1918],
+};
+
+function getAllStopsWithCoords(){
+  const result = [];
+  let counter = 0;
+  DATA.forEach(leg => {
+    leg.stops.forEach(([name, city, phone, addr]) => {
+      counter++;
+      const coords = CITY_COORDS[city];
+      if(!coords) return;
+      result.push({ id: String(counter), name, city, phone, addr, lat: coords[0], lng: coords[1] });
+    });
+  });
+  return result;
+}
+
+function haversineMiles(lat1, lon1, lat2, lon2){
+  const toRad = d => d * Math.PI / 180;
+  const R = 3958.8;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+let nearestMap = null;
+let nearestMarkers = null;
+
+function ensureNearestMap(){
+  if(!nearestMap){
+    nearestMap = L.map("nearestMap");
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18,
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(nearestMap);
+    nearestMarkers = L.layerGroup().addTo(nearestMap);
+  }
+  return nearestMap;
+}
+
+function renderNearestMap(userLat, userLng, nearest){
+  const map = ensureNearestMap();
+  nearestMarkers.clearLayers();
+  nearestMarkers.addLayer(
+    L.circleMarker([userLat, userLng], { radius: 7, color: "#1B1F23", fillColor: "#1B1F23", fillOpacity: 1 }).bindPopup("You are here")
+  );
+  const bounds = [[userLat, userLng]];
+  nearest.forEach(item => {
+    nearestMarkers.addLayer(
+      L.marker([item.lat, item.lng]).bindPopup(`<b>${item.name}</b><br>${item.city}<br>~${item.miles.toFixed(1)} mi`)
+    );
+    bounds.push([item.lat, item.lng]);
+  });
+  map.invalidateSize();
+  map.fitBounds(bounds, { padding: [30, 30] });
+}
+
+function renderNearestList(nearest){
+  const listEl = document.getElementById("nearestList");
+  listEl.innerHTML = "";
+  nearest.forEach(item => {
+    const badge = ` <span class="distance-badge">~${item.miles.toFixed(1)} mi away</span>`;
+    listEl.appendChild(createStopElement(item.id, item.name, item.city, item.phone, item.addr, "stop-near-", badge));
+  });
+  applyStatus();
+}
+
+document.getElementById("nearestBtn").addEventListener("click", () => {
+  const overlay = document.getElementById("nearestOverlay");
+  const statusEl = document.getElementById("nearestStatus");
+  overlay.hidden = false;
+  document.getElementById("nearestList").innerHTML = "";
+  statusEl.textContent = "Finding your location…";
+
+  if(!navigator.geolocation){
+    statusEl.textContent = "Geolocation isn't supported in this browser.";
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const { latitude, longitude } = pos.coords;
+      const nearest = getAllStopsWithCoords()
+        .map(s => ({ ...s, miles: haversineMiles(latitude, longitude, s.lat, s.lng) }))
+        .sort((a, b) => a.miles - b.miles)
+        .slice(0, 5);
+      statusEl.textContent = "Showing the 5 closest facilities to your location.";
+      renderNearestList(nearest);
+      renderNearestMap(latitude, longitude, nearest);
+    },
+    err => {
+      statusEl.textContent = "Couldn't get your location (" + err.message + "). Check your browser's location permission and try again.";
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+});
+
+document.getElementById("nearestClose").addEventListener("click", () => {
+  document.getElementById("nearestOverlay").hidden = true;
+});
+
+document.getElementById("nearestOverlay").addEventListener("click", e => {
+  if(e.target.id === "nearestOverlay") e.currentTarget.hidden = true;
+});
 
 document.getElementById("resetBtn").addEventListener("click", async () => {
   callStatus = {};
