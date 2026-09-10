@@ -312,11 +312,11 @@ function render(){
   DATA.forEach(leg => {
     const details = document.createElement("details");
     details.className = "leg leg" + leg.leg;
-    details.open = true;
+    details.open = false;
 
     const summary = document.createElement("summary");
     summary.className = "leg-head";
-    summary.innerHTML = `<span>LEG ${leg.leg} — ${leg.name}</span><span class="leg-sub">${leg.sub}</span><span class="chev">▶</span>`;
+    summary.innerHTML = `<span>${leg.name}</span><span class="leg-sub">${leg.sub}</span><span class="chev">▶</span>`;
     details.appendChild(summary);
 
     const stopsWrap = document.createElement("div");
