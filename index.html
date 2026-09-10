@@ -249,7 +249,12 @@
   <button class="reset-btn" id="resetBtn">Reset all checkmarks</button>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
+const SUPABASE_URL = "https://cgyropxdyinewklydkbk.supabase.co";
+const SUPABASE_KEY = "sb_publishable_YkXp54aXuZ-fYr_kDVupCQ_xBCmMp8P";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 const DATA = [
   { leg: 1, name: "NORTHWEST / PANHANDLE", sub: "Pensacola → east on I-10", stops: [
     ["Escambia Boys Base","Pensacola","(850) 453-7490","640 Roberts Avenue Bldg 3780, Pensacola, FL 32511"],
@@ -379,44 +384,90 @@ function applyStatus(){
   document.getElementById("progressLabel").textContent = `${doneCount} of ${TOTAL} called`;
 }
 
-function saveStatus(){
+function cacheStatusLocally(){
   try{
     localStorage.setItem("djj-call-status", JSON.stringify(callStatus));
   }catch(e){
-    console.error("Could not save progress:", e);
+    console.error("Could not cache progress locally:", e);
   }
 }
 
-function loadStatus(){
+function loadCachedStatus(){
   try{
     const raw = localStorage.getItem("djj-call-status");
-    callStatus = raw ? JSON.parse(raw) : {};
+    return raw ? JSON.parse(raw) : {};
   }catch(e){
-    callStatus = {};
+    return {};
   }
 }
 
-function toggleStop(id){
-  callStatus[id] = !callStatus[id];
+async function loadStatus(){
+  callStatus = loadCachedStatus();
+  try{
+    const { data, error } = await sb.from("stop_status").select("id, checked");
+    if(error) throw error;
+    callStatus = {};
+    data.forEach(row => { callStatus[row.id] = row.checked; });
+    cacheStatusLocally();
+  }catch(e){
+    console.error("Could not load shared progress, using local cache:", e);
+  }
+}
+
+function applyRemoteChange(id, checked){
+  callStatus[id] = checked;
+  const check = document.querySelector(`.check[data-id="${id}"]`);
+  const stop = document.getElementById("stop-" + id);
+  if(check) check.classList.toggle("checked", checked);
+  if(stop) stop.classList.toggle("done", checked);
+  applyStatus();
+  cacheStatusLocally();
+}
+
+function subscribeToChanges(){
+  sb.channel("stop_status_changes")
+    .on("postgres_changes", { event: "*", schema: "public", table: "stop_status" }, payload => {
+      const row = payload.new;
+      if(row && row.id !== undefined) applyRemoteChange(row.id, row.checked);
+    })
+    .subscribe();
+}
+
+async function toggleStop(id){
+  const checked = !callStatus[id];
+  callStatus[id] = checked;
   const check = document.querySelector(`.check[data-id="${id}"]`);
   const stop = document.getElementById("stop-" + id);
   check.classList.toggle("checked");
   stop.classList.toggle("done");
   applyStatus();
-  saveStatus();
+  cacheStatusLocally();
+  try{
+    const { error } = await sb.from("stop_status").upsert({ id, checked });
+    if(error) throw error;
+  }catch(e){
+    console.error("Could not save progress to server:", e);
+  }
 }
 
-document.getElementById("resetBtn").addEventListener("click", () => {
+document.getElementById("resetBtn").addEventListener("click", async () => {
   callStatus = {};
   applyStatus();
   document.querySelectorAll(".check").forEach(el => el.classList.remove("checked"));
   document.querySelectorAll(".stop").forEach(el => el.classList.remove("done"));
-  saveStatus();
+  cacheStatusLocally();
+  try{
+    const { error } = await sb.from("stop_status").update({ checked: false }).neq("id", "");
+    if(error) throw error;
+  }catch(e){
+    console.error("Could not reset shared progress:", e);
+  }
 });
 
-(function init(){
-  loadStatus();
+(async function init(){
+  await loadStatus();
   render();
+  subscribeToChanges();
 })();
 </script>
 
