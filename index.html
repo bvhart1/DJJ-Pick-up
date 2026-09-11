@@ -316,6 +316,23 @@
     font-weight:700;
     color:var(--leg1);
   }
+  .notes-input{
+    display:block;
+    width:100%;
+    font:inherit;
+    font-size:12.5px;
+    padding:6px 8px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    resize:vertical;
+    margin:0 0 8px;
+    background:#fff;
+    color:var(--ink);
+  }
+  .notes-input:focus{
+    outline:2px solid var(--leg1);
+    outline-offset:1px;
+  }
   .logo-row{
     display:flex;
     align-items:center;
@@ -424,12 +441,16 @@ const DATA = [
 
 const TOTAL = DATA.reduce((n, leg) => n + leg.stops.length, 0);
 let callStatus = {};
+let notesData = {};
 
 function telHref(phone){
   return "tel:" + phone.replace(/[^\d]/g, "");
 }
 function mapsHref(addr){
   return "https://maps.google.com/?q=" + encodeURIComponent(addr);
+}
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 }
 
 function createStopElement(id, name, city, phone, addr, idPrefix, extraHtml){
@@ -444,6 +465,7 @@ function createStopElement(id, name, city, phone, addr, idPrefix, extraHtml){
       <p class="name">${name}</p>
       <p class="city">${city}${extraHtml || ""}</p>
       <p class="addr-text">${addr}</p>
+      <textarea class="notes-input" data-id="${id}" placeholder="Notes (optional)" rows="2">${escapeHtml(notesData[id] || "")}</textarea>
       <div class="actions">
         <a class="btn call" href="${telHref(phone)}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
@@ -531,14 +553,43 @@ function loadCachedStatus(){
   }
 }
 
+function cacheNotesLocally(){
+  try{
+    localStorage.setItem("djj-call-notes", JSON.stringify(notesData));
+  }catch(e){
+    console.error("Could not cache notes locally:", e);
+  }
+}
+
+function loadCachedNotes(){
+  try{
+    const raw = localStorage.getItem("djj-call-notes");
+    return raw ? JSON.parse(raw) : {};
+  }catch(e){
+    return {};
+  }
+}
+
+function setNotesUI(id, notes){
+  document.querySelectorAll(`.notes-input[data-id="${id}"]`).forEach(el => {
+    if(document.activeElement !== el) el.value = notes;
+  });
+}
+
 async function loadStatus(){
   callStatus = loadCachedStatus();
+  notesData = loadCachedNotes();
   try{
-    const { data, error } = await sb.from("stop_status").select("id, checked");
+    const { data, error } = await sb.from("stop_status").select("id, checked, notes");
     if(error) throw error;
     callStatus = {};
-    data.forEach(row => { callStatus[row.id] = row.checked; });
+    notesData = {};
+    data.forEach(row => {
+      callStatus[row.id] = row.checked;
+      notesData[row.id] = row.notes || "";
+    });
     cacheStatusLocally();
+    cacheNotesLocally();
   }catch(e){
     console.error("Could not load shared progress, using local cache:", e);
   }
@@ -551,14 +602,44 @@ function applyRemoteChange(id, checked){
   cacheStatusLocally();
 }
 
+function applyRemoteNotes(id, notes){
+  notesData[id] = notes || "";
+  setNotesUI(id, notesData[id]);
+  cacheNotesLocally();
+}
+
 function subscribeToChanges(){
   sb.channel("stop_status_changes")
     .on("postgres_changes", { event: "*", schema: "public", table: "stop_status" }, payload => {
       const row = payload.new;
-      if(row && row.id !== undefined) applyRemoteChange(row.id, row.checked);
+      if(!row || row.id === undefined) return;
+      if(row.checked !== undefined) applyRemoteChange(row.id, row.checked);
+      if(row.notes !== undefined) applyRemoteNotes(row.id, row.notes);
     })
     .subscribe();
 }
+
+const notesSaveTimers = {};
+
+async function saveNotesToServer(id){
+  try{
+    const { error } = await sb.from("stop_status").upsert({ id, notes: notesData[id] || "" });
+    if(error) throw error;
+  }catch(e){
+    console.error("Could not save notes to server:", e);
+  }
+}
+
+document.addEventListener("input", e => {
+  const ta = e.target.closest(".notes-input");
+  if(!ta) return;
+  const id = ta.dataset.id;
+  notesData[id] = ta.value;
+  setNotesUI(id, ta.value);
+  cacheNotesLocally();
+  clearTimeout(notesSaveTimers[id]);
+  notesSaveTimers[id] = setTimeout(() => saveNotesToServer(id), 700);
+});
 
 const CONFETTI_COLORS = ["#2E5C8A","#2E7D5C","#9A6B1F","#8A2E4A","#8FD3B0","#E4A93A"];
 
