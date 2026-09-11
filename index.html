@@ -316,11 +316,31 @@
     font-weight:700;
     color:var(--leg1);
   }
+  .logo-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .logo-badge{
+    height:36px;
+    width:auto;
+    display:block;
+    border-radius:6px;
+  }
+  .logo-transfr{
+    background:#fff;
+    padding:5px 8px;
+  }
 </style>
 </head>
 <body>
 
 <header>
+  <div class="logo-row">
+    <img src="assets/fl-djj-logo.jpg" alt="Florida Department of Juvenile Justice" class="logo-badge logo-fldjj">
+    <img src="assets/transfr-logo.png" alt="Transfr" class="logo-badge logo-transfr">
+  </div>
   <h1>Florida DJJ Headset Pickup</h1>
   <p>Once headsets are picked up, check the box.</p>
   <div class="progress-wrap">
