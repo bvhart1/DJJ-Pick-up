@@ -1,6 +1,6 @@
-# DJJ-Pick-up
+# Florida DJJ Headset Pickup
 
-A single-page checklist for a 34-stop DJJ site visit route, grouped into four legs (Panhandle, Northeast, Central, South). For each stop you can call ahead, get driving directions, and check it off — progress is saved in your browser (`localStorage`) so it persists between visits on the same device.
+A single-page checklist for a 34-stop DJJ headset pickup route, grouped into four legs (Panhandle, Northeast, Central, South). For each stop you can call ahead, get driving directions, and check it off once headsets are picked up. Checkmarks sync across devices via Supabase, and a "Find Nearest Facilities" button shows the closest stops on a map.
 
 ## Running it
 
